@@ -55,7 +55,7 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
 #define CW_TIMEOUT (600l) // in milliseconds, this is the parameter that determines how long the tx will hold between cw key downs
 unsigned long cwTimeout = 0;     //keyer var - dead operator control
 
-#define TX_RX (12)   // (2 sided 2 possition relay)
+#define TX_RX (5)   // (2 sided 2 possition relay)
 #define TX_ON (7)   // this is for microfone PTT in SSB transceivers (not need for EK1A)
 #define CW_KEY (4)   // KEY output pin - in Q7 transistor colector (+5V when keyer down for RF signal modulation) (in Minima to enable sidetone generator on)
 #define BAND_HI (6)  // relay for RF output LPF  - (0) < 10 MHz , (1) > 10 MHz (see LPF in EK1A schematic)  
@@ -131,10 +131,11 @@ void checkCW(){
   if (keyDown == 0 && analogRead(ANALOG_KEYER) < 50){
     //switch to transmit mode if we are not already in it
     if (inTx == 0){
-        //put the  TX_RX line to transmit
-          digitalWrite(TX_RX, LOW);
-        //give the relays a few ms to settle the T/R relays
-        delay(50);
+      //put the  TX_RX line to transmit
+      pinMode(TX_RX, OUTPUT);
+      digitalWrite(TX_RX, 1);
+      //give the relays a few ms to settle the T/R relays
+      delay(50);
     }
     inTx = 1;
     keyDown = 1;
@@ -156,8 +157,8 @@ void checkCW(){
   //if we have keyuup for a longish time while in cw rx mode
   if (inTx == 1 && cwTimeout < millis()){
     //move the radio back to receive
-    digitalWrite(TX_RX, HIGH);
-    digitalWrite(CW_KEY, 0);
+    digitalWrite(TX_RX, 0);
+	digitalWrite(CW_KEY, 0);
     inTx = 0;
     cwTimeout = 0;
   }
@@ -170,8 +171,7 @@ void setup() {
 //set up the pins in/out and logic levels
 pinMode(TX_RX, OUTPUT);
 digitalWrite(TX_RX, LOW);
-digitalWrite(TX_RX, HIGH);  
-
+  
 //pinMode(FBUTTON, INPUT);  
 //digitalWrite(FBUTTON, 1);
   
@@ -180,7 +180,6 @@ digitalWrite(TX_ON, LOW);
   
 pinMode(CW_KEY, OUTPUT);
 digitalWrite(CW_KEY, LOW);
-//digitalWrite(CW_KEY, HIGH);
   
 
 // Initialize the Serial port so that we can use it for debugging
@@ -247,7 +246,7 @@ digitalWrite(CW_KEY, LOW);
 
 void loop() {
 	checkCW();   // when pres keyer
-//	checkTX();   // microphone PTT
+	checkTX();   // microphone PTT
 	checkBTNdecode();  // BAND change
 
 	

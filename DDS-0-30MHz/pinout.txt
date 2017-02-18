@@ -1,0 +1,18 @@
+D4 - CW mainboard - output
+D12 - tx/rx relay mainboard - output
+D6 - LPF relay mainboard - output
+D7 - PTT - input
+A0 - rotary encoder push button - for FREQ STEP change - input
+A1 - cw key - input
+A2 - band change - input
+
+
+AD9851
+8
+9
+10
+11
+
+rotary
+D2 - input
+D3 - input
