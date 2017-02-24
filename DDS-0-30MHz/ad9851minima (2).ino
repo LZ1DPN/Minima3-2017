@@ -59,12 +59,10 @@ unsigned long cwTimeout = 0;     //keyer var - dead operator control
 #define TX_ON (7)   // this is for microfone PTT in SSB transceivers (not need for EK1A)
 #define CW_KEY (4)   // KEY output pin - in Q7 transistor colector (+5V when keyer down for RF signal modulation) (in Minima to enable sidetone generator on)
 #define BAND_HI (6)  // relay for RF output LPF  - (0) < 10 MHz , (1) > 10 MHz (see LPF in EK1A schematic)  
-#define USB (5)
 //#define FBUTTON (A3)  // tuning step freq CHANGE from 1Hz to 1MHz step for single rotary encoder possition
 #define ANALOG_KEYER (A1)  // KEYER input - for analog straight key
 char inTx = 0;     // trx in transmit mode temp var
 char keyDown = 0;   // keyer down temp vat
-int var_start = 1;
 
 //AD9851 control
 #define W_CLK 8   // Pin 8 - connect to AD9851 module word load clock pin (CLK)
@@ -80,8 +78,6 @@ Rotary r = Rotary(2,3); // sets the pins for rotary encoder uses.  Must be inter
 int_fast32_t rx=7000000; // Starting frequency of VFO
 int_fast32_t rx2=1; // temp variable to hold the updated frequency
 int_fast32_t rxif=19996500; // IF freq, will be summed with vfo freq - rx variable
-int_fast32_t rxifLSB=19996500;  // - 3000
-int_fast32_t rxifUSB=20002500;   // + 3000
 
 int_fast32_t increment = 100; // starting VFO update increment in HZ. tuning step
 int buttonstate = 0;   // temp var
@@ -114,15 +110,15 @@ void checkTX(){   // this is stopped now, but if you need to use mike for SSB PT
 
   if (digitalRead(TX_ON) == 0 && inTx == 0){
       //put the  TX_RX line to transmit
-      digitalWrite(TX_RX, 1);
 	  inTx = 1;
   }
 
   if (digitalRead(TX_ON) == 1 && inTx == 1){
-      //put the  TX_RX line to RX
-      digitalWrite(TX_RX, 0);
+      //put the  TX_RX line to transmit
       inTx = 0;
   }
+  //put the  TX_RX line to transmit
+  digitalWrite(TX_RX, inTx);
   //give the relays a few ms to settle the T/R relays
   delay(50);
 }
@@ -136,7 +132,7 @@ void checkCW(){
     //switch to transmit mode if we are not already in it
     if (inTx == 0){
         //put the  TX_RX line to transmit
-          digitalWrite(TX_RX, 0);
+          digitalWrite(TX_RX, LOW);
         //give the relays a few ms to settle the T/R relays
         delay(50);
     }
@@ -160,7 +156,7 @@ void checkCW(){
   //if we have keyuup for a longish time while in cw rx mode
   if (inTx == 1 && cwTimeout < millis()){
     //move the radio back to receive
-    digitalWrite(TX_RX, 1);
+    digitalWrite(TX_RX, HIGH);
     digitalWrite(CW_KEY, 0);
     inTx = 0;
     cwTimeout = 0;
@@ -173,14 +169,8 @@ void setup() {
 
 //set up the pins in/out and logic levels
 pinMode(TX_RX, OUTPUT);
-digitalWrite(TX_RX, LOW);  
-digitalWrite(TX_RX, HIGH); 
-
-pinMode(BAND_HI, OUTPUT);  
-digitalWrite(BAND_HI, LOW);
-
-pinMode(USB, OUTPUT); 
-digitalWrite(USB, LOW);
+digitalWrite(TX_RX, LOW);
+digitalWrite(TX_RX, HIGH);  
 
 //pinMode(FBUTTON, INPUT);  
 //digitalWrite(FBUTTON, 1);
@@ -189,10 +179,9 @@ pinMode(TX_ON, INPUT);    // need pullup resistor see Minima schematic
 digitalWrite(TX_ON, LOW);
   
 pinMode(CW_KEY, OUTPUT);
-digitalWrite(CW_KEY, HIGH);
 digitalWrite(CW_KEY, LOW);
-  digitalWrite(CW_KEY, 1);
-  digitalWrite(CW_KEY, 0);
+//digitalWrite(CW_KEY, HIGH);
+  
 
 // Initialize the Serial port so that we can use it for debugging
   Serial.begin(115200);
@@ -257,15 +246,6 @@ digitalWrite(CW_KEY, LOW);
 ///// START LOOP - MAIN LOOP
 
 void loop() {
-        if (var_start == 1) {
-            var_start=0;
-            digitalWrite(TX_RX, 0);
-            digitalWrite(CW_KEY, 1);
-            digitalWrite(CW_KEY, 0);
-            digitalWrite(TX_RX, 1);
-            delay(50);
-        }
-            
 	checkCW();   // when pres keyer
 //	checkTX();   // microphone PTT
 	checkBTNdecode();  // BAND change
@@ -302,22 +282,12 @@ void loop() {
 
 // LPF band switch relay	  
 	  
-	if(rx <= 13999999){
+	if(rx < 10000000){
 		digitalWrite(BAND_HI, 0);
 	    }
-	if(rx > 13999999){
+	if(rx > 10000000){
 		digitalWrite(BAND_HI, 1);
 		}
-		
-	if(rx < 10000000){
-		rxif=rxifLSB;
-                digitalWrite(USB, 0);
-	    }
-	if(rx >= 10000000){
-		rxif=rxifUSB;
-                digitalWrite(USB, 1);
-		}
-		
 		  
 ///	  SERIAL COMMUNICATION - remote computer control for DDS - worked but not finishet yet - 1, 2, 3, 4 - worked 
    /*  check if data has been sent from the computer: */
