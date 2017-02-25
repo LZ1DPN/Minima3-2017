@@ -302,10 +302,10 @@ void loop() {
 
 // LPF band switch relay	  
 	  
-	if(rx <= 13999999){
+	if(rx <= 14999999){
 		digitalWrite(BAND_HI, 0);
 	    }
-	if(rx > 13999999){
+	if(rx > 14999999){
 		digitalWrite(BAND_HI, 1);
 		}
 		
