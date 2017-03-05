@@ -36,7 +36,7 @@ example from:
 // new
 #include <si5351.h>
 //#define PLLB_FREQ 87600000000ULL
-#define SI5351_FREQ_MULT  1
+//#define SI5351_FREQ_MULT  1
 Si5351 si5351;
 //------------------------------- Set Optional Features here --------------------------------------
 //Remove comment (//) from the option you want to use. Pick only one
