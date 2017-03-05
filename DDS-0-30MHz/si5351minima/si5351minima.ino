@@ -9,10 +9,44 @@ Revision 6.0 - August 16, 2016  - serial control buttons from computer with USB 
 Revision 7.0 - November 30, 2016  - added some things from Ashhar Farhan's Minima TRX sketch to control transceiver, keyer, relays and other ...									
 Revision 7.5 - December 12, 2016  - for Minima and Bingo Transceivers (LZ1DPN mod).
 Revision 8.0 - February 15, 2017  - for Minima and Bingo Transceivers - IF = 20MHz(LZ1DPN mod).
-*/
+
+example from:
+ * si5351_vcxo.ino - Example for using the Si5351B VCXO functions
+ * with Si5351Arduino library
+ *
+ * Copyright (C) 2016 Jason Milldrum <milldrum@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <SPI.h>
 #include <Wire.h>
+
+// new
+#include <si5351.h>
+//#define PLLB_FREQ 87600000000ULL
+#define SI5351_FREQ_MULT  1
+Si5351 si5351;
+//------------------------------- Set Optional Features here --------------------------------------
+//Remove comment (//) from the option you want to use. Pick only one
+#define IF_Offset //Output is the display plus or minus the bfo frequency
+//#define Direct_conversion //What you see on display is what you get
+//#define FreqX4  //output is four times the display frequency
+//--------------------------------------------------------------------------------------------------
+
+
+
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #define OLED_RESET 4
@@ -55,29 +89,36 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
 #define CW_TIMEOUT (600l) // in milliseconds, this is the parameter that determines how long the tx will hold between cw key downs
 unsigned long cwTimeout = 0;     //keyer var - dead operator control
 
-#define TX_RX (5)   // (2 sided 2 possition relay)
+#define TX_RX (12)   // (2 sided 2 possition relay)
 #define TX_ON (7)   // this is for microfone PTT in SSB transceivers (not need for EK1A)
 #define CW_KEY (4)   // KEY output pin - in Q7 transistor colector (+5V when keyer down for RF signal modulation) (in Minima to enable sidetone generator on)
 #define BAND_HI (6)  // relay for RF output LPF  - (0) < 10 MHz , (1) > 10 MHz (see LPF in EK1A schematic)  
+#define USB (5)
 //#define FBUTTON (A3)  // tuning step freq CHANGE from 1Hz to 1MHz step for single rotary encoder possition
 #define ANALOG_KEYER (A1)  // KEYER input - for analog straight key
 char inTx = 0;     // trx in transmit mode temp var
 char keyDown = 0;   // keyer down temp vat
+int var_start = 1;
 
 //AD9851 control
-#define W_CLK 8   // Pin 8 - connect to AD9851 module word load clock pin (CLK)
-#define FQ_UD 9   // Pin 9 - connect to freq update pin (FQ)
-#define DATA 10   // Pin 10 - connect to serial data load pin (DATA)
-#define RESET 11  // Pin 11 - connect to reset pin (RST) 
+//#define W_CLK 8   // Pin 8 - connect to AD9851 module word load clock pin (CLK)
+//#define FQ_UD 9   // Pin 9 - connect to freq update pin (FQ)
+//#define DATA 10   // Pin 10 - connect to serial data load pin (DATA)
+//#define RESET 11  // Pin 11 - connect to reset pin (RST) 
+
+
 
 #define BTNDEC (A2)  // BAND CHANGE BUTTON from 1,8 to 29 MHz - 11 bands
 #define pulseHigh(pin) {digitalWrite(pin, HIGH); digitalWrite(pin, LOW); }
 Rotary r = Rotary(2,3); // sets the pins for rotary encoder uses.  Must be interrupt pins.
 //LiquidCrystal lcd(12, 13, 7, 6, 5, 4); // I used an odd pin combination because I need pin 2 and 3 for the interrupts. for LCD 16x2 - not used now
   
-int_fast32_t rx=7000000; // Starting frequency of VFO
+int_fast32_t rx=7000000/SI5351_FREQ_MULT; // Starting frequency of VFO
 int_fast32_t rx2=1; // temp variable to hold the updated frequency
 int_fast32_t rxif=19996500; // IF freq, will be summed with vfo freq - rx variable
+int_fast32_t rxifLSB=19996500;  // - 3000
+int_fast32_t rxifUSB=20002500;   // + 3000
+String tbfo = "";
 
 int_fast32_t increment = 100; // starting VFO update increment in HZ. tuning step
 int buttonstate = 0;   // temp var
@@ -110,15 +151,15 @@ void checkTX(){   // this is stopped now, but if you need to use mike for SSB PT
 
   if (digitalRead(TX_ON) == 0 && inTx == 0){
       //put the  TX_RX line to transmit
+      digitalWrite(TX_RX, 1);
 	  inTx = 1;
   }
 
   if (digitalRead(TX_ON) == 1 && inTx == 1){
-      //put the  TX_RX line to transmit
+      //put the  TX_RX line to RX
+      digitalWrite(TX_RX, 0);
       inTx = 0;
   }
-  //put the  TX_RX line to transmit
-  digitalWrite(TX_RX, inTx);
   //give the relays a few ms to settle the T/R relays
   delay(50);
 }
@@ -131,11 +172,10 @@ void checkCW(){
   if (keyDown == 0 && analogRead(ANALOG_KEYER) < 50){
     //switch to transmit mode if we are not already in it
     if (inTx == 0){
-      //put the  TX_RX line to transmit
-      pinMode(TX_RX, OUTPUT);
-      digitalWrite(TX_RX, 1);
-      //give the relays a few ms to settle the T/R relays
-      delay(50);
+        //put the  TX_RX line to transmit
+          digitalWrite(TX_RX, 0);
+        //give the relays a few ms to settle the T/R relays
+        delay(50);
     }
     inTx = 1;
     keyDown = 1;
@@ -157,8 +197,8 @@ void checkCW(){
   //if we have keyuup for a longish time while in cw rx mode
   if (inTx == 1 && cwTimeout < millis()){
     //move the radio back to receive
-    digitalWrite(TX_RX, 0);
-	digitalWrite(CW_KEY, 0);
+    digitalWrite(TX_RX, 1);
+    digitalWrite(CW_KEY, 0);
     inTx = 0;
     cwTimeout = 0;
   }
@@ -168,10 +208,53 @@ void checkCW(){
 
 void setup() {
 
+Wire.begin();
+ 
+// Start serial and initialize the Si5351
+ Serial.begin(19200);
+// new
+ 
+  si5351.set_correction(140); //**mine. There is a calibration sketch in File/Examples/si5351Arduino-Jason
+  //where you can determine the correction by using the serial monitor.
+
+  //initialize the Si5351
+  si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0); //If you're using a 27Mhz crystal, put in 27000000 instead of 0
+  // 0 is the default crystal frequency of 25Mhz.
+
+  si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
+  // Set CLK0 to output the starting "vfo" frequency as set above by vfo = ?
+
+#ifdef IF_Offset
+  si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
+  volatile uint32_t vfoT = (rx * SI5351_FREQ_MULT) + rxif;
+  tbfo = "LSB";
+  // Set CLK2 to output bfo frequency
+  si5351.set_freq( rxif, 0, SI5351_CLK2);
+  //si5351.drive_strength(SI5351_CLK0,SI5351_DRIVE_2MA); //you can set this to 2MA, 4MA, 6MA or 8MA
+  //si5351.drive_strength(SI5351_CLK1,SI5351_DRIVE_2MA); //be careful though - measure into 50ohms
+  //si5351.drive_strength(SI5351_CLK2,SI5351_DRIVE_2MA); //
+#endif
+
+#ifdef Direct_conversion
+  si5351.set_freq((rx * SI5351_FREQ_MULT), SI5351_PLL_FIXED, SI5351_CLK0);
+#endif
+
+#ifdef FreqX4
+  si5351.set_freq((rx * SI5351_FREQ_MULT) * 4, SI5351_PLL_FIXED, SI5351_CLK0);
+#endif
+// new
+  
 //set up the pins in/out and logic levels
 pinMode(TX_RX, OUTPUT);
-digitalWrite(TX_RX, LOW);
-  
+digitalWrite(TX_RX, LOW);  
+digitalWrite(TX_RX, HIGH); 
+
+pinMode(BAND_HI, OUTPUT);  
+digitalWrite(BAND_HI, LOW);
+
+pinMode(USB, OUTPUT); 
+digitalWrite(USB, LOW);
+
 //pinMode(FBUTTON, INPUT);  
 //digitalWrite(FBUTTON, 1);
   
@@ -179,8 +262,10 @@ pinMode(TX_ON, INPUT);    // need pullup resistor see Minima schematic
 digitalWrite(TX_ON, LOW);
   
 pinMode(CW_KEY, OUTPUT);
+digitalWrite(CW_KEY, HIGH);
 digitalWrite(CW_KEY, LOW);
-  
+  digitalWrite(CW_KEY, 1);
+  digitalWrite(CW_KEY, 0);
 
 // Initialize the Serial port so that we can use it for debugging
   Serial.begin(115200);
@@ -213,13 +298,13 @@ digitalWrite(CW_KEY, LOW);
   PCICR |= (1 << PCIE2);
   PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
   sei();
-  pinMode(FQ_UD, OUTPUT);
-  pinMode(W_CLK, OUTPUT);
-  pinMode(DATA, OUTPUT);
-  pinMode(RESET, OUTPUT); 
-  pulseHigh(RESET);
-  pulseHigh(W_CLK);
-  pulseHigh(FQ_UD);  // this pulse enables serial mode on the AD9851 - see datasheet
+//  pinMode(FQ_UD, OUTPUT);
+//  pinMode(W_CLK, OUTPUT);
+//  pinMode(DATA, OUTPUT);
+//  pinMode(RESET, OUTPUT); 
+//  pulseHigh(RESET);
+//  pulseHigh(W_CLK);
+//  pulseHigh(FQ_UD);  // this pulse enables serial mode on the AD9851 - see datasheet
 //  lcd.setCursor(hertzPosition,1);    
 //  lcd.print(hertz);
 
@@ -245,8 +330,17 @@ digitalWrite(CW_KEY, LOW);
 ///// START LOOP - MAIN LOOP
 
 void loop() {
+        if (var_start == 1) {
+            var_start=0;
+            digitalWrite(TX_RX, 0);
+            digitalWrite(CW_KEY, 1);
+            digitalWrite(CW_KEY, 0);
+            digitalWrite(TX_RX, 1);
+            delay(50);
+        }
+            
 	checkCW();   // when pres keyer
-	checkTX();   // microphone PTT
+//	checkTX();   // microphone PTT
 	checkBTNdecode();  // BAND change
 
 	
@@ -262,7 +356,7 @@ void loop() {
 			display.println(hertz);
 			display.display();
 		}
-        sendFrequency(rx);
+//        sendFrequency(rx);
         rx2 = rx;
       }
 
@@ -281,12 +375,22 @@ void loop() {
 
 // LPF band switch relay	  
 	  
-	if(rx < 10000000){
+	if(rx <= 14999999){
 		digitalWrite(BAND_HI, 0);
 	    }
-	if(rx > 10000000){
+	if(rx > 14999999){
 		digitalWrite(BAND_HI, 1);
 		}
+		
+	if(rx < 10000000){
+		rxif=rxifLSB;
+                digitalWrite(USB, 0);
+	    }
+	if(rx >= 10000000){
+		rxif=rxifUSB;
+                digitalWrite(USB, 1);
+		}
+		
 		  
 ///	  SERIAL COMMUNICATION - remote computer control for DDS - worked but not finishet yet - 1, 2, 3, 4 - worked 
    /*  check if data has been sent from the computer: */
@@ -315,7 +419,7 @@ void loop() {
         if(byteRead == 53){		// 5 - scan freq from 7000 to 7050 and back to 7000
              for (int i=0; i=500; (i=i+100))
                 rx = rx + i;
-                sendFrequency(rx);
+//                sendFrequency(rx);
                 Serial.println(rx);
                 showFreq();
                 display.clearDisplay();	
@@ -344,26 +448,53 @@ ISR(PCINT2_vect) {
   }
 }
 
+// new
+void sendFrequency(double frequency) { 
+#ifdef IF_Offset
+    si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
+    //you can also subtract the bfo to suit your needs
+    //si5351.set_freq((rx * SI5351_FREQ_MULT) - rxif  , SI5351_PLL_FIXED, SI5351_CLK0);
+
+    if (rx >= 10000000ULL & tbfo != "USB")
+    {
+      rxif = rxifUSB;
+      tbfo = "USB";
+      si5351.set_freq( rxif, 0, SI5351_CLK2);
+      Serial.println("We've switched from LSB to USB");
+    }
+    else if (rx < 10000000ULL & tbfo != "LSB")
+    {
+      rxif = rxifLSB;
+      tbfo = "LSB";
+      si5351.set_freq( rxif, 0, SI5351_CLK2);
+      Serial.println("We've switched from USB to LSB");
+    }
+#endif
+Serial.println(frequency);   // for serial console debuging
+// Serial.println(frequency + rxif);
+}
+// new
+
 // frequency calc from datasheet page 8 = <sys clock> * <frequency tuning word>/2^32
-void sendFrequency(double frequency) {  
-  int32_t freq = (frequency + rxif) * 4294967296./180000000;  // note 180 MHz clock on 9851. also note slight adjustment of this can be made to correct for frequency error of onboard crystal
-  for (int b=0; b<4; b++, freq>>=8) {
-    tfr_byte(freq & 0xFF);
-  }
-  tfr_byte(0x001);   // Final control byte, LSB 1 to enable 6 x xtal multiplier on 9851 set to 0x000 for 9850
-  pulseHigh(FQ_UD);  // Done!  Should see output
+//void sendFrequency(double frequency) {  
+//  int32_t freq = (frequency + rxif) * 4294967296./180000000;  // note 180 MHz clock on 9851. also note slight adjustment of this can be made to correct for frequency error of onboard crystal
+//  for (int b=0; b<4; b++, freq>>=8) {
+//    tfr_byte(freq & 0xFF);
+//  }
+//  tfr_byte(0x001);   // Final control byte, LSB 1 to enable 6 x xtal multiplier on 9851 set to 0x000 for 9850
+//  pulseHigh(FQ_UD);  // Done!  Should see output
   
 //    Serial.println(frequency);   // for serial console debuging
 //    Serial.println(frequency + rxif);
-}
+//}
 
 // transfers a byte, a bit at a time, LSB first to the 9851 via serial DATA line
-void tfr_byte(byte data){
-  for (int i=0; i<8; i++, data>>=1){
-    digitalWrite(DATA, data & 0x01);
-    pulseHigh(W_CLK);   //after each bit sent, CLK is pulsed high
-  }
-}
+//void tfr_byte(byte data){
+//  for (int i=0; i<8; i++, data>>=1){
+//    digitalWrite(DATA, data & 0x01);
+//    pulseHigh(W_CLK);   //after each bit sent, CLK is pulsed high
+//  }
+//}
 
 // step increments for rotary encoder button
 void setincrement(){
