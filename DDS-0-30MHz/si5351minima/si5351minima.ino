@@ -268,7 +268,7 @@ digitalWrite(CW_KEY, LOW);
   digitalWrite(CW_KEY, 0);
 
 // Initialize the Serial port so that we can use it for debugging
-  Serial.begin(115200);
+//  Serial.begin(115200);
   Serial.println("Start VFO ver 8.0 minima 3");
 
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
@@ -295,9 +295,9 @@ digitalWrite(CW_KEY, LOW);
   digitalWrite(A0,HIGH);  //level
 //  lcd.begin(16, 2);  // for LCD
 //  next AD9851 communication settings
-  PCICR |= (1 << PCIE2);
-  PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
-  sei();
+//  PCICR |= (1 << PCIE2);
+//  PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
+//  sei();
 //  pinMode(FQ_UD, OUTPUT);
 //  pinMode(W_CLK, OUTPUT);
 //  pinMode(DATA, OUTPUT);
@@ -356,7 +356,7 @@ void loop() {
 			display.println(hertz);
 			display.display();
 		}
-//        sendFrequency(rx);
+        sendFrequency(rx);
         rx2 = rx;
       }
 
@@ -419,7 +419,7 @@ void loop() {
         if(byteRead == 53){		// 5 - scan freq from 7000 to 7050 and back to 7000
              for (int i=0; i=500; (i=i+100))
                 rx = rx + i;
-//                sendFrequency(rx);
+                sendFrequency(rx);
                 Serial.println(rx);
                 showFreq();
                 display.clearDisplay();	
