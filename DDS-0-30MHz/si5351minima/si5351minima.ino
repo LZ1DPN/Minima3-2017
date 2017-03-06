@@ -30,6 +30,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // new
 #include <si5351.h>
+<<<<<<< HEAD
+=======
+//#define PLLB_FREQ 87600000000ULL
+>>>>>>> origin/master
 //#define SI5351_FREQ_MULT  1
 Si5351 si5351;
 //------------------------------- Set Optional Features here --------------------------------------
