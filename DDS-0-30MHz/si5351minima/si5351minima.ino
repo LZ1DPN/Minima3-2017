@@ -8,35 +8,29 @@ Revision 6.0 - August 16, 2016  - serial control buttons from computer with USB 
 									for no_display work with DDS generator
 Revision 7.0 - November 30, 2016  - added some things from Ashhar Farhan's Minima TRX sketch to control transceiver, keyer, relays and other ...									
 Revision 7.5 - December 12, 2016  - for Minima and Bingo Transceivers (LZ1DPN mod).
-Revision 8.0 - February 15, 2017  - for Minima and Bingo Transceivers - IF = 20MHz(LZ1DPN mod).
+Revision 8.0 - February 15, 2017  - for Minima, BitX and Bingo Transceivers (LZ1DPN mod).
+Revision 9.0 - March 06, 2017  - Si5351 + Arduino + OLED - for Minima and Bingo Transceivers (LZ1DPN mod).
+				Parts of this program is taken from Jason Mildrum, NT7S and Przemek Sadowski, SQ9NJE.
+				http://nt7s.com/
+				http://sq9nje.pl/
+				http://ak2b.blogspot.com/
+				+ example from:
+				si5351_vcxo.ino - Example for using the Si5351B VCXO functions
+				with Si5351Arduino library Copyright (C) 2016 Jason Milldrum <milldrum@gmail.com>
 
-example from:
- * si5351_vcxo.ino - Example for using the Si5351B VCXO functions
- * with Si5351Arduino library
- *
- * Copyright (C) 2016 Jason Milldrum <milldrum@gmail.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <SPI.h>
 #include <Wire.h>
 
 // new
 #include <si5351.h>
-//#define PLLB_FREQ 87600000000ULL
-#define SI5351_FREQ_MULT  1
+//#define SI5351_FREQ_MULT  1
 Si5351 si5351;
 //------------------------------- Set Optional Features here --------------------------------------
 //Remove comment (//) from the option you want to use. Pick only one
@@ -85,28 +79,24 @@ static const unsigned char PROGMEM logo16_glcd_bmp[] =
 #include <rotary.h>
 #include <EEPROM.h>
 #include <avr/io.h>
-//Setup some items
 #define CW_TIMEOUT (600l) // in milliseconds, this is the parameter that determines how long the tx will hold between cw key downs
 unsigned long cwTimeout = 0;     //keyer var - dead operator control
-
-#define TX_RX (12)   // (2 sided 2 possition relay)
-#define TX_ON (7)   // this is for microfone PTT in SSB transceivers (not need for EK1A)
+#define TX_RX (12)   // (2 sided 2 possition relay) - for Farhan minima +5V to Receive 0V to Transmit !!! (see Your schema and change if need)
+#define TX_ON (7)   // this is for microphone PTT in SSB transceivers (not need for EK1A)
 #define CW_KEY (4)   // KEY output pin - in Q7 transistor colector (+5V when keyer down for RF signal modulation) (in Minima to enable sidetone generator on)
 #define BAND_HI (6)  // relay for RF output LPF  - (0) < 10 MHz , (1) > 10 MHz (see LPF in EK1A schematic)  
 #define USB (5)
-//#define FBUTTON (A3)  // tuning step freq CHANGE from 1Hz to 1MHz step for single rotary encoder possition
+//#define FBUTTON (A3)  // button - stopped
 #define ANALOG_KEYER (A1)  // KEYER input - for analog straight key
 char inTx = 0;     // trx in transmit mode temp var
 char keyDown = 0;   // keyer down temp vat
 int var_start = 1;
 
-//AD9851 control
+//AD9851 control - stopped
 //#define W_CLK 8   // Pin 8 - connect to AD9851 module word load clock pin (CLK)
 //#define FQ_UD 9   // Pin 9 - connect to freq update pin (FQ)
 //#define DATA 10   // Pin 10 - connect to serial data load pin (DATA)
 //#define RESET 11  // Pin 11 - connect to reset pin (RST) 
-
-
 
 #define BTNDEC (A2)  // BAND CHANGE BUTTON from 1,8 to 29 MHz - 11 bands
 #define pulseHigh(pin) {digitalWrite(pin, HIGH); digitalWrite(pin, LOW); }
@@ -117,7 +107,7 @@ int_fast32_t rx=7000000/SI5351_FREQ_MULT; // Starting frequency of VFO
 int_fast32_t rx2=1; // temp variable to hold the updated frequency
 int_fast32_t rxif=19996500; // IF freq, will be summed with vfo freq - rx variable
 int_fast32_t rxifLSB=19996500;  // - 3000
-int_fast32_t rxifUSB=20002500;   // + 3000
+int_fast32_t rxifUSB=20002500;   // + 3000 need more tests for USB mode
 String tbfo = "";
 
 int_fast32_t increment = 100; // starting VFO update increment in HZ. tuning step
@@ -160,7 +150,7 @@ void checkTX(){   // this is stopped now, but if you need to use mike for SSB PT
       digitalWrite(TX_RX, 0);
       inTx = 0;
   }
-  //give the relays a few ms to settle the T/R relays
+  //give a few ms to settle the T/R relays
   delay(50);
 }
 
