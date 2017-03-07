@@ -103,6 +103,10 @@ Rotary r = Rotary(2,3); // sets the pins for rotary encoder uses.  Must be inter
   
 int_fast32_t rx=7000000/SI5351_FREQ_MULT; // Starting frequency of VFO
 int_fast32_t rx2=1; // temp variable to hold the updated frequency
+//int_fast32_t rxif=0; // IF freq, will be summed with vfo freq - rx variable
+//int_fast32_t rxifLSB=0;  // - 3000
+//int_fast32_t rxifUSB=0;   // + 3000 need more tests for USB mode
+
 int_fast32_t rxif=19996500; // IF freq, will be summed with vfo freq - rx variable
 int_fast32_t rxifLSB=19996500;  // - 3000
 int_fast32_t rxifUSB=20002500;   // + 3000 need more tests for USB mode
@@ -257,7 +261,7 @@ digitalWrite(CW_KEY, LOW);
 
 // Initialize the Serial port so that we can use it for debugging
 //  Serial.begin(115200);
-  Serial.println("Start VFO ver 8.0 minima 3");
+  Serial.println("Start VFO ver 9.0 minima 3");
 
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C address 0x3C (for oled 128x32)
