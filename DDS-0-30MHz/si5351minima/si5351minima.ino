@@ -204,6 +204,13 @@ Wire.begin();
  
 // Start serial and initialize the Si5351
  Serial.begin(19200);
+ 
+// rotary 
+  PCICR |= (1 << PCIE2);
+  PCMSK2 |= (1 << PCINT18) | (1 << PCINT19);
+  sei();
+  
+  
 // new
  
   si5351.set_correction(140); //**mine. There is a calibration sketch in File/Examples/si5351Arduino-Jason
