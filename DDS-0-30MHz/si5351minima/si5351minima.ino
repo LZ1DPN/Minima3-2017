@@ -327,16 +327,16 @@ ISR(PCINT2_vect) {
 void sendFrequency(double frequency) { 
 if (rx >= 10000000ULL & tbfo != "USB")
     {
-	    si5351.set_freq((rx * SI5351_FREQ_MULT) - rxif  , SI5351_PLL_FIXED, SI5351_CLK0);
       rxif = rxifUSB;
+	    si5351.set_freq((rx * SI5351_FREQ_MULT) - rxif  , SI5351_PLL_FIXED, SI5351_CLK0);
       tbfo = "USB";
       si5351.set_freq( rxif, 0, SI5351_CLK2);
       Serial.println("We've switched from LSB to USB");
     }
 else if (rx < 10000000ULL & tbfo != "LSB")
     {
-	    si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
       rxif = rxifLSB;
+	    si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
       tbfo = "LSB";
       si5351.set_freq( rxif, 0, SI5351_CLK2);
       Serial.println("We've switched from USB to LSB");
