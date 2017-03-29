@@ -17,7 +17,8 @@ Revision 9.0 - March 06, 2017  - Si5351 + Arduino + OLED - for Minima and Bingo 
 				+ example from:
 				si5351_vcxo.ino - Example for using the Si5351B VCXO functions
 				with Si5351Arduino library Copyright (C) 2016 Jason Milldrum <milldrum@gmail.com>
-
+Revision 10.0	March 29.2017	- Last code optimisation
+ 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the GNU General Public License for more details.
@@ -219,7 +220,7 @@ digitalWrite(CW_KEY, LOW);
 
 // Initialize the Serial port so that we can use it for debugging
 //  Serial.begin(115200);
-  Serial.println("Start VFO ver 9.0 minima 3");
+  Serial.println("Start VFO ver 10.0 minima 3");
 
   // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C);  // initialize with the I2C address 0x3C (for oled 128x32)
@@ -278,7 +279,7 @@ void loop() {
 	
 // freq change 
   if (rx != rx2){		
-		  showFreq();    		
+	  showFreq();    		
       sendFrequency(rx);
       rx2 = rx;
       }
@@ -300,11 +301,11 @@ void loop() {
 // BFO band relay 		
 	if(rx < 10000000){
 		  rxif=rxifLSB;
-      digitalWrite(USB, 0);
+          digitalWrite(USB, 0);
 	    }
 	if(rx >= 10000000){
 		  rxif=rxifUSB;
-      digitalWrite(USB, 1);
+          digitalWrite(USB, 1);
 		}
 }	  
 /// END of main loop ///
@@ -328,7 +329,7 @@ void sendFrequency(double frequency) {
 if (rx >= 10000000ULL & tbfo != "USB")
     {
       rxif = rxifUSB;
-	    si5351.set_freq((rx * SI5351_FREQ_MULT) - rxif  , SI5351_PLL_FIXED, SI5351_CLK0);
+	  si5351.set_freq((rx * SI5351_FREQ_MULT) - rxif  , SI5351_PLL_FIXED, SI5351_CLK0);
       tbfo = "USB";
       si5351.set_freq( rxif, 0, SI5351_CLK2);
       Serial.println("We've switched from LSB to USB");
@@ -336,7 +337,7 @@ if (rx >= 10000000ULL & tbfo != "USB")
 else if (rx < 10000000ULL & tbfo != "LSB")
     {
       rxif = rxifLSB;
-	    si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
+	  si5351.set_freq((rx * SI5351_FREQ_MULT) + rxif, SI5351_PLL_FIXED, SI5351_CLK0);
       tbfo = "LSB";
       si5351.set_freq( rxif, 0, SI5351_CLK2);
       Serial.println("We've switched from USB to LSB");
@@ -373,14 +374,14 @@ void showFreq(){
     tens = ((rx/10)%10);
     ones = ((rx/1)%10);
 
- 	  display.clearDisplay();	
-	  display.setCursor(0,0);
-	  display.println(rx);
-	  display.setCursor(0,18);
-	  display.println(hertz);
-	  display.display();
+ 	display.clearDisplay();	
+	display.setCursor(0,0);
+	display.println(rx);
+	display.setCursor(0,18);
+	display.println(hertz);
+	display.display();
 
-	  timepassed = millis();
+	timepassed = millis();
     memstatus = 0; // Trigger memory write
 }
 
